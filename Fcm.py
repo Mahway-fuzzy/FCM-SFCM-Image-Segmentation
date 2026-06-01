@@ -6,7 +6,7 @@ from PIL import Image
 import skfuzzy as fuzz
 
 # =========================================
-# إعدادات عامة
+# 
 # =========================================
 IMAGE_PATHS = [
     "IMG_3677(1).png",
@@ -23,7 +23,7 @@ SEED = 42
 RESIZE_LONG_SIDE = 280   # الضلع الأطول = 280 بكسل
 
 # =========================================
-# تحميل الصورة وتصغيرها
+
 # =========================================
 def load_and_resize_image(path, long_side=280):
     img = Image.open(path).convert("RGB")
@@ -38,14 +38,14 @@ def load_and_resize_image(path, long_side=280):
     return img_resized, arr
 
 # =========================================
-# حساب PE يدويًا
+# 
 # =========================================
 def partition_entropy(u):
     eps = 1e-12
     return -np.sum(u * np.log(u + eps)) / u.shape[1]
 
-# =========================================
-# تطبيق FCM لصورة RGB
+# ======================================
+
 # =========================================
 def run_fcm_rgb(image_array, c, m=2.0, error=1e-5, maxiter=150, seed=42):
     h, w, ch = image_array.shape
@@ -84,7 +84,7 @@ def run_fcm_rgb(image_array, c, m=2.0, error=1e-5, maxiter=150, seed=42):
     }
 
 # =========================================
-# اختيار أفضل c باستخدام PC + PE + XB
+# 
 # =========================================
 def choose_best_cluster(metrics_df):
     # PC: الأكبر أفضل
@@ -96,7 +96,7 @@ def choose_best_cluster(metrics_df):
 
     metrics_df["rank_sum"] = pc_rank + pe_rank + xb_rank
 
-    # درجة تطبيع إضافية للعرض فقط
+    # 
     pc_norm = (metrics_df["PC"] - metrics_df["PC"].min()) / (metrics_df["PC"].max() - metrics_df["PC"].min() + 1e-12)
     pe_norm = (metrics_df["PE"].max() - metrics_df["PE"]) / (metrics_df["PE"].max() - metrics_df["PE"].min() + 1e-12)
     xb_norm = (metrics_df["XB"].max() - metrics_df["XB"]) / (metrics_df["XB"].max() - metrics_df["XB"].min() + 1e-12)
@@ -108,7 +108,7 @@ def choose_best_cluster(metrics_df):
     return best_c, metrics_df
 
 # =========================================
-# الرسم البياني
+# 
 # =========================================
 def save_metrics_plot(metrics_df, out_path, title):
     plt.figure(figsize=(8, 5))
@@ -125,7 +125,7 @@ def save_metrics_plot(metrics_df, out_path, title):
     plt.close()
 
 # =========================================
-# مقارنة الصورة الأصلية مع الصورة المقسمة
+# 
 # =========================================
 def save_comparison(original_arr, segmented_arr, out_path, title):
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
@@ -144,7 +144,7 @@ def save_comparison(original_arr, segmented_arr, out_path, title):
     plt.close()
 
 # =========================================
-# التنفيذ الكامل
+# 
 # =========================================
 def process_image(path):
     base = os.path.splitext(os.path.basename(path))[0]
@@ -167,15 +167,15 @@ def process_image(path):
     metrics_df = pd.DataFrame(all_metrics)
     best_c, metrics_df = choose_best_cluster(metrics_df)
 
-    # حفظ CSV
+    # 
     metrics_csv = os.path.join(OUT_DIR, f"{base}_metrics.csv")
     metrics_df.to_csv(metrics_csv, index=False)
 
-    # حفظ الرسم البياني
+    # 
     plot_path = os.path.join(OUT_DIR, f"{base}_plot.png")
     save_metrics_plot(metrics_df, plot_path, f"Cluster Validity Metrics - {base}")
 
-    # حفظ المقارنة
+    # 
     comparison_path = os.path.join(OUT_DIR, f"{base}_comparison.png")
     best_segmented = all_results[best_c]["segmented"]
     save_comparison(img_arr, best_segmented, comparison_path, f"Best c = {best_c}")
