@@ -6,7 +6,7 @@ from PIL import Image
 from scipy.ndimage import uniform_filter, median_filter
 
 # =========================================================
-# إعدادات عامة
+# 
 # =========================================================
 IMAGE_PATHS = [
     "IMG_3677(1).png",  # peacock
@@ -24,22 +24,22 @@ SEED = 42
 
 # Spatial parameters
 WINDOW_SIZE = 5
-ALPHA = 1.8   # قوة العامل المكاني
+ALPHA = 1.8   
 
 # Image size
-RESIZE_LONG_SIDE = 320  # None للحجم الأصلي
+RESIZE_LONG_SIDE = 320  
 
 # Feature weights
 COLOR_WEIGHT = 1.0
-XY_WEIGHT = 0.35  # مهم حتى لا يعتمد فقط على اللون
+XY_WEIGHT = 0.35  
 
 # اختيار أفضل c
 USE_PENALTY_FOR_SMALL_C = True
-C2_PENALTY = 0.08   # عقوبة بسيطة لـ c=2 إذا كانت المؤشرات متقاربة
+C2_PENALTY = 0.08   
 
 
 # =========================================================
-# تحميل الصورة
+
 # =========================================================
 def load_image(path, resize_long_side=None):
     img = Image.open(path).convert("RGB")
@@ -56,7 +56,7 @@ def load_image(path, resize_long_side=None):
 
 
 # =========================================================
-# تقدير الضوضاء Noise Estimation
+
 # =========================================================
 def rgb_to_gray(image_rgb):
     return (
@@ -74,7 +74,7 @@ def estimate_noise(image_rgb):
     """
     gray = rgb_to_gray(image_rgb)
 
-    # median filter لإزالة التفاصيل الدقيقة نسبيًا
+   
     smooth = median_filter(gray, size=3)
     residual = gray - smooth
 
@@ -87,7 +87,7 @@ def estimate_noise(image_rgb):
     noise_std = np.std(residual) + 1e-12
     snr_db = 20 * np.log10((signal_std + 1e-12) / noise_std)
 
-    # Local variance متوسط
+    
     local_mean = uniform_filter(gray, size=5)
     local_mean_sq = uniform_filter(gray**2, size=5)
     local_var = np.mean(np.maximum(local_mean_sq - local_mean**2, 0))
@@ -103,7 +103,7 @@ def estimate_noise(image_rgb):
 
 
 # =========================================================
-# بناء features = RGB + XY
+
 # =========================================================
 def build_feature_matrix(image_rgb, color_weight=1.0, xy_weight=0.35):
     h, w, ch = image_rgb.shape
@@ -122,7 +122,7 @@ def build_feature_matrix(image_rgb, color_weight=1.0, xy_weight=0.35):
 
 
 # =========================================================
-# تهيئة العضوية
+#
 # =========================================================
 def initialize_membership(c, n, seed=42):
     rng = np.random.default_rng(seed)
@@ -132,7 +132,7 @@ def initialize_membership(c, n, seed=42):
 
 
 # =========================================================
-# تحديث المراكز
+# 
 # =========================================================
 def update_centers(X, U, m):
     um = U ** m
@@ -142,7 +142,7 @@ def update_centers(X, U, m):
 
 
 # =========================================================
-# حساب المسافات
+# 
 # =========================================================
 def compute_distances(X, centers):
     diff = X[None, :, :] - centers[:, None, :]
@@ -151,7 +151,7 @@ def compute_distances(X, centers):
 
 
 # =========================================================
-# تحديث عضوية FCM
+# 
 # =========================================================
 def update_membership_from_dist(dist, m):
     power = 2.0 / (m - 1.0)
@@ -161,7 +161,7 @@ def update_membership_from_dist(dist, m):
 
 
 # =========================================================
-# التنعيم المكاني
+# 
 # =========================================================
 def spatial_smooth_memberships(membership_maps, window_size=5):
     c, h, w = membership_maps.shape
@@ -172,7 +172,7 @@ def spatial_smooth_memberships(membership_maps, window_size=5):
 
 
 # =========================================================
-# Spatial FCM with RGB + XY
+
 # =========================================================
 def spatial_fcm_with_xy(
     image_rgb,
@@ -204,7 +204,7 @@ def spatial_fcm_with_xy(
         membership_maps = U_fcm.reshape(c, h, w)
         S = spatial_smooth_memberships(membership_maps, window_size=window_size)
 
-        # العامل المكاني
+        
         U_new = U_fcm * (S.reshape(c, -1) ** alpha)
         U_new /= np.sum(U_new, axis=0, keepdims=True)
 
@@ -222,7 +222,7 @@ def spatial_fcm_with_xy(
     labels = np.argmax(U, axis=0)
     label_image = labels.reshape(h, w)
 
-    # نعرض segmentation باستخدام فقط مراكز RGB
+    
     rgb_centers = centers[:, :3]
     segmented_rgb = rgb_centers[labels].reshape(h, w, 3)
 
@@ -264,7 +264,7 @@ def xie_beni(U, dist, centers, m):
 
 
 # =========================================================
-# اختيار أفضل كلاستر
+
 # =========================================================
 def choose_best_cluster(metrics_df, use_penalty=True, c2_penalty=0.08):
     df = metrics_df.copy()
@@ -274,21 +274,21 @@ def choose_best_cluster(metrics_df, use_penalty=True, c2_penalty=0.08):
     df["PE_norm_good"] = (df["PE"].max() - df["PE"]) / (df["PE"].max() - df["PE"].min() + 1e-12)
     df["XB_norm_good"] = (df["XB"].max() - df["XB"]) / (df["XB"].max() - df["XB"].min() + 1e-12)
 
-    # score أساسي
+    
     df["score_raw"] = (
         0.30 * df["PC_norm"] +
         0.30 * df["PE_norm_good"] +
         0.40 * df["XB_norm_good"]
     )
 
-    # عقوبة بسيطة لـ c=2
+   
     df["penalty"] = 0.0
     if use_penalty:
         df.loc[df["c"] == 2, "penalty"] = c2_penalty
 
     df["score_final"] = df["score_raw"] - df["penalty"]
 
-    # للعرض أيضًا
+    
     df["rank_PC"] = df["PC"].rank(ascending=False, method="min")
     df["rank_PE"] = df["PE"].rank(ascending=True, method="min")
     df["rank_XB"] = df["XB"].rank(ascending=True, method="min")
@@ -301,7 +301,7 @@ def choose_best_cluster(metrics_df, use_penalty=True, c2_penalty=0.08):
 
 
 # =========================================================
-# حفظ الصور
+
 # =========================================================
 def save_comparison_figure(original, segmented, label_img, out_path, title):
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -379,7 +379,7 @@ def save_noise_figure(image_rgb, residual_map, out_path, title):
 
 
 # =========================================================
-# معالجة صورة واحدة
+
 # =========================================================
 def process_one_image(image_path):
     base_name = os.path.splitext(os.path.basename(image_path))[0]
